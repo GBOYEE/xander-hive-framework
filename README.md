@@ -163,7 +163,7 @@ If you’re evaluating my work for a contract:
 ## Contact
 
 For professional inquiries: **xanderaicorp@gmail.com**  
-GitHub: github.com/GBOYEE (repos: `bounty-hunter`, `xander-hive-framework`)  
+GitHub: github.com/GBOYEE (repos: `web3-security-scout`, `xander-hive-framework`)  
 LinkedIn: [your profile]
 
 ---

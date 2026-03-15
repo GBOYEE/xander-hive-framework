@@ -1,0 +1,41 @@
+{
+  "bindings": [
+    {
+      "type": "route",
+      "agentId": "prof",
+      "match": {
+        "channel": "discord",
+        "accountId": "default",
+        "peer": { "kind": "channel", "id": "PROF_CHANNEL_ID" }
+      }
+    },
+    {
+      "type": "route",
+      "agentId": "hunter",
+      "match": {
+        "channel": "discord",
+        "accountId": "default",
+        "peer": { "kind": "channel", "id": "HUNTER_CHANNEL_ID" }
+      }
+    },
+    {
+      "type": "route",
+      "agentId": "degen-trader",
+      "match": {
+        "channel": "discord",
+        "accountId": "default",
+        "peer": { "kind": "channel", "id": "DEGEN_CHANNEL_ID" }
+      }
+    }
+  ],
+  "session": {
+    "dmScope": "per-channel-peer"
+  },
+  "channelBindings": {
+    "discord": {
+      "threadBindings": {
+        "spawnSubagentSessions": true
+      }
+    }
+  }
+}

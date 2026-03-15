@@ -1,0 +1,3 @@
+# Professional Blurb — XANDER Hive Framework
+
+I designed and built **XANDER**, a multi‑agent orchestration system that coordinates specialist AI subagents (bounty hunting, educational content, autonomous trading) using a central broker, shared vector memory, and continuous self‑evolution. The framework embodies RLHF‑style principles: task decomposition, iterative refinement based on feedback, and cross‑agent learning. It runs on OpenClaw with Docker, systemd, and custom watchdog integration. This hands‑on systems work demonstrates my ability to engineer scalable, maintainable AI‑augmented workflows — skills directly transferable to AI training, model evaluation, and red‑teaming roles.

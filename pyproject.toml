@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xander-hive-framework"
+version = "1.0.0"
+description = "Orchestration engine for multi-agent systems with Redis broker, persistent sessions, and heartbeats"
+authors = [{name="GBOYEE"}]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "redis>=5.0.0",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "fakeredis>=2.0",
+    "ruff>=0.3.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["xander*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.md", "*.txt", "*.yml", "*.yaml"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--cov=src/xander", "--cov-report=xml", "--cov-report=term"]

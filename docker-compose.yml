@@ -1,4 +1,5 @@
 version: "3.8"
+
 services:
   redis:
     image: redis:7-alpine
@@ -10,33 +11,56 @@ services:
       timeout: 3s
       retries: 5
 
+  gateway:
+    build: .
+    command: python -m xander.gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - XANDER_ENV=production
+      - XANDER_PORT=8080
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   hunter:
     build: .
     command: python -m agents.hunter
     depends_on:
-      redis:
-        condition: service_healthy
+      - redis
+      - gateway
     environment:
       - REDIS_URL=redis://redis:6379
     volumes:
       - ./memory:/app/memory
+    restart: unless-stopped
 
   prof:
     build: .
     command: python -m agents.prof
     depends_on:
-      redis:
-        condition: service_healthy
+      - redis
+      - gateway
     environment:
       - REDIS_URL=redis://redis:6379
     volumes:
       - ./memory:/app/memory
+    restart: unless-stopped
 
+  # Optional: demo client
   client:
     build: .
     command: python -m xander.client --agent hunter --task '{"action":"scan","target":"0x123"}'
     depends_on:
       - redis
+      - gateway
     environment:
       - REDIS_URL=redis://redis:6379
     profiles: ["demo"]

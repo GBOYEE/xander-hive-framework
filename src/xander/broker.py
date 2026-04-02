@@ -2,8 +2,11 @@ import redis
 import json
 import threading
 import time
+import logging
 from typing import Callable, Dict, Any, Optional
 from .schemas import validate_message, Heartbeat, Message
+
+logger = logging.getLogger("xander.broker")
 
 class HiveBroker:
     """
@@ -17,8 +20,13 @@ class HiveBroker:
         self._running = False
         self._threads = []
         self._handlers = {}  # channel -> handler
-        self._reconnect_delay = 1  # seconds, exponential backoff
+        self._reconnect_delay = 1
         self._max_reconnect_delay = 60
+        self.metrics = {
+            "messages_published": 0,
+            "messages_delivered": 0,
+            "dispatch_errors": 0,
+        }
 
     def connect(self):
         self.redis = redis.from_url(self.redis_url, decode_responses=True)
@@ -27,11 +35,9 @@ class HiveBroker:
     def start(self):
         self.connect()
         self._running = True
-        # Start dispatch thread
         t = threading.Thread(target=self._dispatch_loop, daemon=True)
         t.start()
         self._threads.append(t)
-        # Start heartbeat emitter (for brokers that also act as agents; optional)
 
     def stop(self):
         self._running = False
@@ -43,7 +49,6 @@ class HiveBroker:
             self.redis.close()
 
     def _dispatch_loop(self):
-        """Listen to all subscribed channels, validate messages, and dispatch."""
         while self._running:
             try:
                 for msg in self.pubsub.listen():
@@ -57,35 +62,35 @@ class HiveBroker:
                             handler = self._handlers.get(channel)
                             if handler:
                                 handler(validated)
+                                self.metrics["messages_delivered"] += 1
                         except json.JSONDecodeError as e:
-                            print(f"JSON decode error on {channel}: {e}")
+                            logger.error("JSON decode error on %s: %s", channel, e)
+                            self.metrics["dispatch_errors"] += 1
                         except Exception as e:
-                            print(f"Handler error on {channel}: {e}")
-                # Reset backoff on successful read
+                            logger.error("Handler error on %s: %s", channel, e, exc_info=True)
+                            self.metrics["dispatch_errors"] += 1
                 self._reconnect_delay = 1
             except redis.ConnectionError:
-                print(f"Redis connection lost. Reconnecting in {self._reconnect_delay}s...")
+                logger.warning("Redis connection lost. Reconnecting in %ds...", self._reconnect_delay)
                 time.sleep(self._reconnect_delay)
                 try:
                     self.connect()
-                    # Resubscribe to all channels
                     for ch in self._handlers:
                         self.pubsub.subscribe(ch)
                     self._reconnect_delay = 1
                 except Exception as e:
-                    print(f"Reconnection failed: {e}")
+                    logger.error("Reconnection failed: %s", e)
                     self._reconnect_delay = min(self._reconnect_delay * 2, self._max_reconnect_delay)
 
     def publish(self, channel: str, message: Dict[str, Any]):
-        """Publish a validated message dict (will be validated on receive)."""
+        """Publish a validated message dict."""
         if not self.redis:
             self.connect()
         try:
-            # Ensure message has version and timestamp? Sender should set.
             self.redis.publish(channel, json.dumps(message))
-        except redis.ConnectionError:
-            # Could buffer for later; for now just print
-            print(f"Publish failed (disconnected): {channel}")
+            self.metrics["messages_published"] += 1
+        except redis.ConnectionError as e:
+            logger.error("Publish failed (disconnected): %s", e)
 
     def send_task(self, agent_id: str, task: Dict[str, Any]):
         """Send a task to an agent's inbox."""

@@ -1,156 +1,72 @@
-# Xander Hive Framework
+# xander-hive-framework
 
-> Orchestration engine for autonomous multi‑agent systems — persistent sessions, shared vector memory, and a Redis event bus.
+Scalable multi‑agent orchestration with persistent sessions, shared vector memory, Redis event bus, and self‑repair.
 
-[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://python.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI](https://github.com/GBOYEE/xander-hive-framework/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
-[![Docker Compose](https://img.shields.io/badge/docker-compose-ready-blue.svg)](docker-compose.yml)
+## 🐝 The Problem
 
-## Problem
+Single agents hit context and coordination limits. Complex workflows require swarms that can share memory, communicate reliably, and improve from experience.
 
-Single‑agent systems don’t scale. Multi‑agent systems are hard to coordinate: agents lose context between runs, there’s no shared memory, and you end up reinventing messaging plumbing.
+## The Solution
 
-## Solution
+XANDER Hive is the orchestration backbone for reliable autonomous agent teams:
 
-Hive Framework gives you:
+- **Persistent sessions** — agents keep identity across tasks
+- **Shared vector memory** — semantic recall for all agents
+- **Redis event bus** — reliable pub/sub messaging
+- **RLHF‑style learning loops** — agents learn from outcomes
+- **Self‑repair** — peers can fix broken agents via review
 
-- **Persistent sessions** — agents keep conversation history across restarts
-- **Shared vector memory** — semantic recall across all agents (RAG‑ready)
-- **Redis‑backed pub/sub bus** — reliable, real‑time command and event routing
-- **Self‑repair** — auto‑restart crashed agents and health monitoring
-- **Extensible** — drop in any agent (LLM‑based, rule‑based, custom)
-
-Built for the HiveSec suite but generic enough for research, automation, trading bots, and more.
-
-## Features
-
-- `HiveBroker` — publish/subscribe and direct inbox queues
-- `AgentSession` — long‑lived agent identity, state persistence, result reporting
-- Vector memory integration (Chroma/FAISS) via `memory/`
-- CLI utilities: `xander.client` to send tasks, `xander.broker` standalone
-- Example agents included (`agents/hunter`, `agents/prof`, etc.)
-
-## Quickstart
-
-```bash
-# 1. Clone and install
-git clone https://github.com/GBOYEE/xander-hive-framework.git
-cd xander-hive-framework
-pip install -r requirements.txt
-
-# 2. Start Redis broker (Docker)
-docker run -p 6379:6379 redis:7-alpine
-
-# 3. Launch a sample agent (Hunter)
-python -m agents.hunter
-
-# 4. In another terminal, send a task
-python -m xander.client --agent hunter --task "Find latest DeFi exploits"
-
-# 5. Check agent logs and shared memory
-```
+Used across the HiveSec ecosystem but generic enough for trading bots, research swarms, etc.
 
 ## Architecture
 
 ```mermaid
-flowchart TD
-    A[Client CLI] --> B[Broker (Redis)]
-    B --> C[Agent Session 1]
-    B --> D[Agent Session 2]
-    B --> E[Agent Session N]
-    C --> F[Vector Memory]
-    D --> F
-    E --> F
-    C --> G[Local Logger]
-    D --> G
-    E --> G
+flowchart LR
+    P[Planner Agent] --> Q[Task Queue]
+    Q --> E[Executor Agent]
+    E --> V[Vector Memory]
+    E --> R[Redis Event Bus]
+    R --> Rv[Reviewer Agent]
+    Rv -->|approve| D[Deliver / Deploy]
+    Rv -->|reject| E
+    V --> E
+    V --> Rv
+    D --> L[(Postgres Logs)]
+    subgraph "Persistence"
+        V
+        L
+    end
 ```
 
-## Core API
-
-### HiveBroker
-
-```python
-from xander import HiveBroker
-
-broker = HiveBroker(redis_url="redis://localhost:6379")
-broker.start()
-
-# Publish an event to all agents listening on "hive:events"
-broker.publish("hive:events", {"type": "market_volatility", "level": "high"})
-
-# Send a direct command to a specific agent
-broker.direct_send("hunter", {"task": "scan", "target": "0x123..."})
-
-# Agent side: fetch next pending command (blocking)
-msg = broker.fetch_next("hunter", timeout=5)
-```
-
-### AgentSession
-
-```python
-from xander import AgentSession, HiveBroker
-
-broker = HiveBroker()
-session = AgentSession(
-    agent_id="hunter",
-    capabilities=["scan:contracts"],
-    broker=broker,
-    memory_root=Path("memory")
-)
-
-def handle_task(task):
-    # do work
-    return {"found": 3}
-
-session.register(handle_task)
-session.start()  # blocks, runs in foreground; spawn thread for inbox
-```
-
-## Project Structure
-
-```
-xander-hive-framework/
-├── xander/                 # Core package
-│   ├── __init__.py
-│   ├── broker.py           # Redis pub/sub + direct inbox
-│   └── session.py          # AgentSession class
-├── agents/                 # Example agents
-│   ├── hunter/README.md
-│   └── hunter/main.py
-├── memory/                 # Shared vector store & agent states
-├── scripts/                # Utilities (backup, resource_check)
-├── skills/                 # Optional OpenClaw skills
-├── docs/                   # Detailed architecture (ARCHITECTURE.md)
-├── requirements.txt
-├── LICENSE
-└── README.md
-```
-
-## Testing
+## Quick Start
 
 ```bash
-pytest -q
+git clone https://github.com/GBOYEE/xander-hive-framework.git
+cd xander-hive-framework
+cp .env.example .env
+docker compose up -d
 ```
 
-CI installs deps, lints with ruff, and runs tests on every push.
+## Components
 
-## Production Notes
+| Component | Role |
+|-----------|------|
+| **Planner** | Breaks high‑level goals into executable steps |
+| **Executor** | Runs tools & skills, writes results |
+| **Reviewer** | Validates outputs before delivery |
+| **Vector Memory** | FAISS + embeddings for semantic recall |
+| **Event Bus** | Redis pub/sub for async coordination |
+| **Dashboard** | Streamlit UI for monitoring & control |
 
-- Use a managed Redis (Encrypted in transit, AUTH)
-- Set `REDIS_URL` env var for remote
-- Enable TLS and use strong AUTH
-- Agents should store state to `memory/<agent_id>/` regularly
-- Consider Docker Compose to spin up broker + multiple agents
+## Design Philosophy
 
-## Roadmap
+Inspired by multi‑agent RLHF and hive‑mind architectures. Agents operate with persistent identity, share a common memory, and learn from each other’s successes and failures. Safety is baked in via mandatory review and rollback hooks.
 
-- [ ] Role‑based access control for commands
-- [ ] Rate limiting per agent
-- [ ] Prometheus metrics endpoint
-- [ ] Web dashboard (see HiveSec‑Ecosystem‑Hub)
+## Research & Ethics
+
+XANDER Hive is designed for domains where reliability and auditability matter: AIOps, security auditing, and infrastructure automation.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT
+```
